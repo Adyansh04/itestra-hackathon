@@ -53,11 +53,19 @@ class BotBrain:
         # Filter out traps (where space < our length)
         # However, if ALL moves are traps, we just pick the one with max space.
         my_length = len(my_snake.body)
-        viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] >= my_length}
+        viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] > my_length * 1.2}
         
         if not viable_moves:
-            # All moves are traps, pick the one that gives us the most time
-            best_dir = max(safer_moves.keys(), key=lambda d: move_scores[d])
+            # We are trapped! Switch to Survival/Coiling Mode.
+            # Pick the move with the highest Voronoi score. Break ties by picking the move
+            # that has the FEWEST open neighbors (Warnsdorff's heuristic) to force wall-hugging.
+            def coiling_score(d):
+                coord = safer_moves[d]
+                adj = BotBrain._get_adjacent(coord, size)
+                free_neighbors = sum(1 for n in adj.values() if n not in obstacles and n not in danger_zones)
+                return (move_scores[d], -free_neighbors)
+                
+            best_dir = max(safer_moves.keys(), key=coiling_score)
             decision_log = (
                 f"--- Decision Log ---\n"
                 f"Head: {head}, Length: {my_length}\n"
@@ -142,9 +150,9 @@ class BotBrain:
     def _get_obstacles(field: Field) -> Set[Coord]:
         obstacles = set()
         for snake in field.snakes.values():
-            if snake.alive:
-                for segment in snake.body:
-                    obstacles.add(segment)
+            # Dead snakes stay on the board as walls!
+            for segment in snake.body:
+                obstacles.add(segment)
         return obstacles
 
     @staticmethod

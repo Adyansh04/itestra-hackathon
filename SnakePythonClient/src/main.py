@@ -21,11 +21,11 @@ if __name__ == "__main__":
     # password = args.password
     team_name = "teamea"
 
-    # base_url = "http://192.168.7.211:3030/"
-    base_url = "http://192.168.3.13:3030/"
+    base_url = "http://192.168.7.211:3030/"
+    # base_url = "http://192.168.3.13:3030/"
 
-    # game_name = "Teamea"
-    game_name = "turnier"
+    game_name = "Teamea"
+    # game_name = "turnier"
 
     password = "handycomputeripad"
 
@@ -39,7 +39,7 @@ if __name__ == "__main__":
     api.set_direction(initial_direction)
 
     while alive:
-        time.sleep(0.5)  # avoid rate limiting error
+        time.sleep(0.4)  # avoid rate limiting error
         field = api.get_field()
         
         start_time = time.time()
