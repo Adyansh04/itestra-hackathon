@@ -57,7 +57,9 @@ class BotBrain:
         for direction, coord in safer_moves.items():
             move_scores[direction] = BotBrain._voronoi_space(coord, enemy_heads, obstacles, size)
 
-        viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] > my_length * 1.2}
+        is_endgame = len(enemy_heads) == 0
+        survival_margin = 1.5 if is_endgame else 1.2
+        viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] > my_length * survival_margin}
         
         if not viable_moves:
             # We are trapped! Switch to Survival/Coiling Mode.
@@ -116,13 +118,38 @@ class BotBrain:
         )
 
         best_dir_to_apple = None
-        if safe_apples:
+        target_lists = [safe_apples]
+        
+        # Endgame Optimization: TSP Heuristic to prevent zig-zagging
+        if is_endgame and safe_apples:
+            import itertools
+            safe_apples.sort(key=lambda a: BotBrain._manhattan_dist(head, a, size))
+            top_apples = safe_apples[:4]
+            best_seq = None
+            min_dist = float('inf')
+            
+            for seq in itertools.permutations(top_apples):
+                dist = BotBrain._manhattan_dist(head, seq[0], size)
+                for i in range(len(seq) - 1):
+                    dist += BotBrain._manhattan_dist(seq[i], seq[i+1], size)
+                if dist < min_dist:
+                    min_dist = dist
+                    best_seq = seq
+            
+            if best_seq:
+                # Try the optimized sequence's first apple exclusively, then fallback to any safe apple
+                target_lists = [[best_seq[0]], safe_apples]
+
+        for targets in target_lists:
+            if not targets:
+                continue
+                
             # First attempt: path to safe apple AVOIDING Bad Apples
-            best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, enemy_heads, obstacles.union(set(bad_apples)), size, viable_moves, my_length)
+            best_dir_to_apple = BotBrain._bfs_shortest_path(head, targets, enemy_heads, obstacles.union(set(bad_apples)), size, viable_moves, my_length)
             
             if not best_dir_to_apple:
                 # Second attempt: path to safe apple ALLOWING Bad Apples
-                best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, enemy_heads, obstacles, size, viable_moves, my_length)
+                best_dir_to_apple = BotBrain._bfs_shortest_path(head, targets, enemy_heads, obstacles, size, viable_moves, my_length)
                 
             if best_dir_to_apple:
                 decision_log += f"Result: Safe apple found! Moving {best_dir_to_apple} towards it.\n\n"
