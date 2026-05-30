@@ -7,169 +7,144 @@ from Field import Field
 
 class BotBrain:
     @staticmethod
-    def get_next_move(field: Field, team_name: str) -> Direction:
+    def get_next_move(field: Field, team_name: str, phase1_margin: float = 1.0, phase2_margin: float = 1.0) -> Direction:
         my_snake = field.snakes.get(team_name)
         if not my_snake or not my_snake.alive or not my_snake.head:
-            # Fallback if dead or not found
             return random.choice(get_directions_as_list())
 
         head = my_snake.head
         size = field.size
         
-        obstacles = BotBrain._get_obstacles(field)
-        danger_zones = BotBrain._get_danger_zones(field, team_name, size)
-        
-        my_length = len(my_snake.body)
+        # 1. Parse Stars and Active Effects
+        stars = [tuple(item[0]) for item in field.items if item[1] == 'Star']
+        apples = [tuple(item[0]) for item in field.items if item[1] == 'Apple']
         bad_apples = [tuple(item[0]) for item in field.items if item[1] == 'BadApple']
         
-        # Fatal Case Avoidance: Treat Bad Apples as hard walls if eating one would kill us
-        if my_length <= 3:
-            for ba in bad_apples:
-                obstacles.add(ba)
+        im_invincible = any(e.effect in ('TouchOfDeath', 'Invincible') for e in my_snake.active_effects)
         
-        # 2. Evaluate all 4 possible moves
-        adjacent_cells = BotBrain._get_adjacent(head, size)
-        
-        safe_moves: Dict[Direction, Coord] = {}
-        for direction, coord in adjacent_cells.items():
-            if coord not in obstacles:
-                safe_moves[direction] = coord
-
-        # If no moves are strictly safe, we will just crash. But try to pick something.
-        if not safe_moves:
-            print("No safe moves! Crashing...")
-            return random.choice(get_directions_as_list())
-
-        # 3. Filter out Danger Zones if possible, but keep them as fallback
-        safer_moves = {d: c for d, c in safe_moves.items() if c not in danger_zones}
-        if not safer_moves:
-            # We must step into a danger zone or die
-            print("Warning: Forced to step into a danger zone!")
-            safer_moves = safe_moves
-
+        invincible_enemies = []
         enemy_heads = []
+        all_enemy_segments = set()
+        
         for name, snake in field.snakes.items():
             if name != team_name and snake.alive and snake.head:
                 enemy_heads.append(tuple(snake.head))
+                all_enemy_segments.update(tuple(seg) for seg in snake.body)
+                if any(e.effect in ('TouchOfDeath', 'Invincible') for e in snake.active_effects):
+                    invincible_enemies.append(snake)
 
-        # 4. Evaluate safer moves using Voronoi Territory Control
-        move_scores: Dict[Direction, int] = {}
-        for direction, coord in safer_moves.items():
-            move_scores[direction] = BotBrain._voronoi_space(coord, enemy_heads, obstacles, size)
-
-        is_endgame = len(enemy_heads) == 0
-        survival_margin = 1.5 if is_endgame else 1.2
-        viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] > my_length * survival_margin}
+        # 2. Dynamic Obstacles and Danger Zones
+        obstacles = BotBrain._get_obstacles(field)
+        # Avoid bad apples strictly
+        for ba in bad_apples:
+            obstacles.add(ba)
+            
+        danger_zones = set()
+        for name, snake in field.snakes.items():
+            if name != team_name and snake.alive and snake.head:
+                is_enemy_invincible = any(e.effect in ('TouchOfDeath', 'Invincible') for e in snake.active_effects)
+                if is_enemy_invincible:
+                    # Enemy is invincible: Their entire body and a 2-tile radius around their head is a Danger Zone
+                    for segment in snake.body:
+                        danger_zones.add(tuple(segment))
+                    danger_zones.update(BotBrain._get_radius(snake.head, size, radius=2))
+                else:
+                    # Normal enemy: head adjacent tiles are Danger Zones (any collision is lethal)
+                    adj = BotBrain._get_adjacent(snake.head, size)
+                    for c in adj.values():
+                        danger_zones.add(c)
         
-        if not viable_moves:
-            # We are trapped! Switch to Survival/Coiling Mode.
-            def coiling_score(d):
-                coord = safer_moves[d]
-                adj = BotBrain._get_adjacent(coord, size)
-                free_neighbors = sum(1 for n in adj.values() if n not in obstacles and n not in danger_zones)
+        # 3. Evaluate Safe Moves
+        adjacent_cells = BotBrain._get_adjacent(head, size)
+        
+        # Find backwards direction to prevent instant suicide
+        neck = my_snake.body[1] if len(my_snake.body) > 1 else None
+        backwards_dir = None
+        for d, coord in adjacent_cells.items():
+            if coord == neck:
+                backwards_dir = d
+                break
+
+        safe_moves: Dict[Direction, Coord] = {}
+        for direction, coord in adjacent_cells.items():
+            if direction != backwards_dir:
+                # If we are invincible, we can safely step on ALIVE enemy segments
+                if im_invincible and coord in all_enemy_segments:
+                    safe_moves[direction] = coord
+                elif coord not in obstacles:
+                    safe_moves[direction] = coord
+
+        if not safe_moves:
+            print("No safe moves! Crashing...")
+            return backwards_dir if backwards_dir else random.choice(get_directions_as_list())
+
+        safer_moves = {}
+        for d, c in safe_moves.items():
+            if c not in danger_zones:
+                safer_moves[d] = c
                 
-                # Tactical Shrinking: prioritize Bad Apples to free up tail space
-                bonus = 1000 if coord in bad_apples else 0
-                return (move_scores[d] + bonus, -free_neighbors)
-                
-            best_dir = max(safer_moves.keys(), key=coiling_score)
-            decision_log = (
-                f"--- Decision Log ---\n"
-                f"Head: {head}, Length: {my_length}\n"
-                f"Voronoi Scores: {move_scores}\n"
-                f"Result: TRAPPED! Picking {best_dir} for maximum survival time.\n\n"
-            )
-            with open('bot_decisions.log', 'a') as f:
-                f.write(decision_log)
-            print(f"Trapped! Picking {best_dir} for maximum survival time ({move_scores[best_dir]} spaces).")
+        viable_moves_for_pathing = safer_moves if safer_moves else safe_moves
+
+        # Evaluate voronoi space for survival
+        move_scores: Dict[Direction, int] = {}
+        for direction, coord in viable_moves_for_pathing.items():
+            move_scores[direction] = BotBrain._voronoi_space(coord, enemy_heads, obstacles.union(danger_zones), size)
+
+        # Priority A: Fleeing
+        if invincible_enemies and not im_invincible:
+            # We want to maximize distance from the closest invincible enemy's head
+            def evasion_score(d):
+                c = viable_moves_for_pathing[d]
+                min_dist = min(BotBrain._manhattan_dist(c, tuple(e.head), size) for e in invincible_enemies)
+                return (min_dist, move_scores[d])
+            
+            best_dir = max(viable_moves_for_pathing.keys(), key=evasion_score)
+            print(f"FLEEING! Moving {best_dir} to escape invincible enemy.")
+            BotBrain._log_decision("FLEEING", head, best_dir, "Escaping invincible enemy")
             return best_dir
 
-        apples = [tuple(item[0]) for item in field.items if item[1] == 'Apple']
+        # Priority B: Hunting
+        if im_invincible and enemy_heads:
+            # Ignore danger zones for hunting
+            hunting_moves = {d: c for d, c in safe_moves.items()}
+            # Find shortest path to closest living enemy (head or body)
+            best_dir_to_kill = BotBrain._bfs_shortest_path(head, list(all_enemy_segments), obstacles, size, hunting_moves)
+            if best_dir_to_kill:
+                print(f"HUNTING! Moving {best_dir_to_kill} to kill enemy.")
+                BotBrain._log_decision("HUNTING", head, best_dir_to_kill, "Chasing enemy")
+                return best_dir_to_kill
+
+        # Priority C: Star Acquisition
+        if stars:
+            # We want to reach the star, we can risk danger zones if it guarantees the star
+            best_dir_to_star = BotBrain._bfs_shortest_path(head, stars, obstacles.union(danger_zones), size, viable_moves_for_pathing)
+            if not best_dir_to_star:
+                best_dir_to_star = BotBrain._bfs_shortest_path(head, stars, obstacles, size, safe_moves)
+            
+            if best_dir_to_star:
+                print(f"CHASING STAR! Moving {best_dir_to_star}.")
+                BotBrain._log_decision("CHASING STAR", head, best_dir_to_star, "Found a path to a Star")
+                return best_dir_to_star
+
+        # Priority D: Normal Survival & Farming
+        safe_apples = [a for a in apples if a not in danger_zones]
+        best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, obstacles.union(danger_zones), size, viable_moves_for_pathing)
         
-        other_bots_info = []
-        for name, snake in field.snakes.items():
-            if name != team_name and snake.alive:
-                other_bots_info.append(f"{name} (Head: {snake.head}, Len: {len(snake.body)})")
-        other_bots_str = ", ".join(other_bots_info) if other_bots_info else "None"
-        
-        # Filter Contested Apples
-        safe_apples = []
-        for apple in apples:
-            my_dist = BotBrain._manhattan_dist(head, apple, size)
-            is_safe = True
-            for enemy_head in enemy_heads:
-                if BotBrain._manhattan_dist(enemy_head, apple, size) <= my_dist:
-                    is_safe = False
-                    break
-            if is_safe:
-                safe_apples.append(apple)
-
-        decision_log = (
-            f"--- Decision Log ---\n"
-            f"Head: {head}, Length: {my_length}\n"
-            f"Other Bots: {other_bots_str}\n"
-            f"All Apples: {apples}\n"
-            f"Safe Apples: {safe_apples}\n"
-            f"Safe Moves: {list(safe_moves.keys())}\n"
-            f"Danger Zones: {danger_zones}\n"
-            f"Safer Moves: {list(safer_moves.keys())}\n"
-            f"Voronoi Scores: {move_scores}\n"
-            f"Viable Moves (score >= length): {list(viable_moves.keys())}\n"
-        )
-
-        best_dir_to_apple = None
-        target_lists = [safe_apples]
-        
-        # Endgame Optimization: TSP Heuristic to prevent zig-zagging
-        if is_endgame and safe_apples:
-            import itertools
-            safe_apples.sort(key=lambda a: BotBrain._manhattan_dist(head, a, size))
-            top_apples = safe_apples[:4]
-            best_seq = None
-            min_dist = float('inf')
+        if best_dir_to_apple:
+            print(f"FARMING! Moving {best_dir_to_apple} towards safe apple.")
+            BotBrain._log_decision("FARMING", head, best_dir_to_apple, "Safe apple found")
+            return best_dir_to_apple
             
-            for seq in itertools.permutations(top_apples):
-                dist = BotBrain._manhattan_dist(head, seq[0], size)
-                for i in range(len(seq) - 1):
-                    dist += BotBrain._manhattan_dist(seq[i], seq[i+1], size)
-                if dist < min_dist:
-                    min_dist = dist
-                    best_seq = seq
+        # No safe apples, just survive by taking the move that gives the most space
+        def survival_score(d):
+            coord = viable_moves_for_pathing[d]
+            adj = BotBrain._get_adjacent(coord, size)
+            free_neighbors = sum(1 for n in adj.values() if n not in obstacles and n not in danger_zones)
+            return (move_scores[d], free_neighbors)
             
-            if best_seq:
-                # Try the optimized sequence's first apple exclusively, then fallback to any safe apple
-                target_lists = [[best_seq[0]], safe_apples]
-
-        for targets in target_lists:
-            if not targets:
-                continue
-                
-            # First attempt: path to safe apple AVOIDING Bad Apples
-            best_dir_to_apple = BotBrain._bfs_shortest_path(head, targets, enemy_heads, obstacles.union(set(bad_apples)), size, viable_moves, my_length)
-            
-            if not best_dir_to_apple:
-                # Second attempt: path to safe apple ALLOWING Bad Apples
-                best_dir_to_apple = BotBrain._bfs_shortest_path(head, targets, enemy_heads, obstacles, size, viable_moves, my_length)
-                
-            if best_dir_to_apple:
-                decision_log += f"Result: Safe apple found! Moving {best_dir_to_apple} towards it.\n\n"
-                print(f"Safe apple found! Moving {best_dir_to_apple} towards it.")
-                with open('bot_decisions.log', 'a') as f:
-                    f.write(decision_log)
-                return best_dir_to_apple
-
-        # 6. Fallback: No reachable apples, just pick the viable move that maximizes space
-        # Prefer viable moves that do NOT step on bad_apples!
-        def viable_score(d):
-            coord = viable_moves[d]
-            penalty = -1000 if coord in bad_apples else 0
-            return move_scores[d] + penalty
-            
-        best_dir = max(viable_moves.keys(), key=viable_score)
-        decision_log += f"Result: No reachable apples. Moving {best_dir} into open space.\n\n"
-        print(f"No reachable apples. Moving {best_dir} into open space.")
-        with open('bot_decisions.log', 'a') as f:
-            f.write(decision_log)
+        best_dir = max(viable_moves_for_pathing.keys(), key=survival_score)
+        print(f"SURVIVING! Moving {best_dir} for maximum space ({move_scores[best_dir]}).")
+        BotBrain._log_decision("SURVIVING", head, best_dir, "Taking max Voronoi space")
         return best_dir
 
     @staticmethod
@@ -188,25 +163,23 @@ class BotBrain:
             "EAST": ((x + 1) % w, y),
             "WEST": ((x - 1) % w, y)
         }
+        
+    @staticmethod
+    def _get_radius(coord: Coord, size: Tuple[int, int], radius: int) -> Set[Coord]:
+        cells = set()
+        for dx in range(-radius, radius + 1):
+            for dy in range(-radius, radius + 1):
+                if abs(dx) + abs(dy) <= radius:
+                    cells.add(((coord[0] + dx) % size[0], (coord[1] + dy) % size[1]))
+        return cells
 
     @staticmethod
     def _get_obstacles(field: Field) -> Set[Coord]:
         obstacles = set()
         for snake in field.snakes.values():
-            # Dead snakes stay on the board as walls!
             for segment in snake.body:
                 obstacles.add(segment)
         return obstacles
-
-    @staticmethod
-    def _get_danger_zones(field: Field, my_team_name: str, size: Tuple[int, int]) -> Set[Coord]:
-        danger = set()
-        for team_name, snake in field.snakes.items():
-            if team_name != my_team_name and snake.alive and snake.head:
-                adj = BotBrain._get_adjacent(snake.head, size)
-                for coord in adj.values():
-                    danger.add(coord)
-        return danger
 
     @staticmethod
     def _voronoi_space(my_start: Coord, enemy_heads: List[Coord], obstacles: Set[Coord], size: Tuple[int, int]) -> int:
@@ -234,21 +207,20 @@ class BotBrain:
         return sum(1 for owner in visited.values() if owner == 0)
 
     @staticmethod
-    def _bfs_shortest_path(start: Coord, targets: List[Coord], enemy_heads: List[Coord], obstacles: Set[Coord], size: Tuple[int, int], viable_moves: Dict[Direction, Coord], my_length: int) -> Optional[Direction]:
+    def _bfs_shortest_path(start: Coord, targets: List[Coord], obstacles: Set[Coord], size: Tuple[int, int], viable_moves: Dict[Direction, Coord]) -> Optional[Direction]:
+        if not targets:
+            return None
         target_set = set(targets)
         
-        # queue stores tuples of (current_coord, first_direction)
         queue = collections.deque()
         visited = set(obstacles)
+        visited.difference_update(target_set) # Allow stepping onto targets
         visited.add(start)
         
-        # Initialize queue with valid first steps
         for direction, coord in viable_moves.items():
             if coord not in visited:
                 if coord in target_set:
-                    # Destination Safety Check: Ensure eating this apple doesn't trap us
-                    if BotBrain._voronoi_space(coord, enemy_heads, obstacles, size) >= my_length + 1:
-                        return direction
+                    return direction
                 queue.append((coord, direction))
                 visited.add(coord)
                 
@@ -257,14 +229,19 @@ class BotBrain:
             
             adj = BotBrain._get_adjacent(curr, size)
             for neighbor in adj.values():
-                # We ignore danger_zones in deep search so we don't get paralyzed
                 if neighbor not in visited:
                     if neighbor in target_set:
-                        # Destination Safety Check: Ensure eating this apple doesn't trap us
-                        if BotBrain._voronoi_space(neighbor, enemy_heads, obstacles, size) >= my_length + 1:
-                            return first_dir
-                        # If it's a trap, we still mark it visited and continue searching
+                        return first_dir
                     visited.add(neighbor)
                     queue.append((neighbor, first_dir))
                     
         return None
+        
+    @staticmethod
+    def _log_decision(mode: str, head: Coord, direction: Direction, reason: str):
+        log_str = f"[{mode}] Head: {head} | Move: {direction} | {reason}\n"
+        try:
+            with open('bot_decisions.log', 'a') as f:
+                f.write(log_str)
+        except Exception:
+            pass

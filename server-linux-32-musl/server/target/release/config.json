@@ -1,0 +1,6 @@
+{
+  "native_ui": true,
+  "ip": "0.0.0.0",
+  "port": 3030,
+  "snake_passwords": {}
+}
