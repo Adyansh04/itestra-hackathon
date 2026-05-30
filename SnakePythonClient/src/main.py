@@ -21,11 +21,11 @@ if __name__ == "__main__":
     # password = args.password
     team_name = "teamea"
 
-    base_url = "http://192.168.7.211:3030/"
-    # base_url = "http://192.168.3.13:3030/"
+    # base_url = "http://192.168.7.211:3030/"
+    base_url = "http://192.168.3.13:3030/"
 
-    game_name = "Teamea"
-    # game_name = "tunier"
+    # game_name = "Teamea"
+    game_name = "turnier"
 
     password = "handycomputeripad"
 
@@ -42,5 +42,9 @@ if __name__ == "__main__":
         time.sleep(0.5)  # avoid rate limiting error
         field = api.get_field()
         
+        start_time = time.time()
         currentDirection = BotBrain.get_next_move(field, team_name)
+        elapsed_ms = (time.time() - start_time) * 1000
+        
+        print(f"Tick completed in {elapsed_ms:.2f} ms. Moving {currentDirection}")
         api.set_direction(currentDirection)
