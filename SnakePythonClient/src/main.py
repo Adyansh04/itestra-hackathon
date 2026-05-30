@@ -4,6 +4,7 @@ import time
 
 from api import SnakeFieldAPI
 from data_structures import Direction, get_directions_as_list
+from bot import BotBrain
 
 if __name__ == "__main__":
     # parser = argparse.ArgumentParser(description="Snake game bot client")
@@ -21,8 +22,10 @@ if __name__ == "__main__":
     team_name = "teamea"
 
     base_url = "http://192.168.7.211:3030/"
+    # base_url = "http://192.168.3.13:3030/"
 
     game_name = "Teamea"
+    # game_name = "tunier"
 
     password = "handycomputeripad"
 
@@ -38,9 +41,6 @@ if __name__ == "__main__":
     while alive:
         time.sleep(0.5)  # avoid rate limiting error
         field = api.get_field()
-        print(field)
         
-        # Pick a random direction for the next tick
-        currentDirection = random.choice(get_directions_as_list())
-        print(f"Tick completed. Moving {currentDirection}")
+        currentDirection = BotBrain.get_next_move(field, team_name)
         api.set_direction(currentDirection)

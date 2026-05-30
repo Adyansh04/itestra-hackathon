@@ -17,6 +17,10 @@ class SnakeInfo:
     inventory: List[str]
     active_effects: List[ActiveEffectInfo]
 
+    @property
+    def head(self) -> Coord | None:
+        return self.body[0] if self.body else None
+
 
 def fill_info_from_source(source) -> [SnakeInfo]:
     snakes = {
