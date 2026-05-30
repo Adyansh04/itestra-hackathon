@@ -16,9 +16,16 @@ class BotBrain:
         head = my_snake.head
         size = field.size
         
-        # 1. Gather constraints
         obstacles = BotBrain._get_obstacles(field)
         danger_zones = BotBrain._get_danger_zones(field, team_name, size)
+        
+        my_length = len(my_snake.body)
+        bad_apples = [tuple(item[0]) for item in field.items if item[1] == 'BadApple']
+        
+        # Fatal Case Avoidance: Treat Bad Apples as hard walls if eating one would kill us
+        if my_length <= 3:
+            for ba in bad_apples:
+                obstacles.add(ba)
         
         # 2. Evaluate all 4 possible moves
         adjacent_cells = BotBrain._get_adjacent(head, size)
@@ -50,20 +57,18 @@ class BotBrain:
         for direction, coord in safer_moves.items():
             move_scores[direction] = BotBrain._voronoi_space(coord, enemy_heads, obstacles, size)
 
-        # Filter out traps (where space < our length)
-        # However, if ALL moves are traps, we just pick the one with max space.
-        my_length = len(my_snake.body)
         viable_moves = {d: c for d, c in safer_moves.items() if move_scores[d] > my_length * 1.2}
         
         if not viable_moves:
             # We are trapped! Switch to Survival/Coiling Mode.
-            # Pick the move with the highest Voronoi score. Break ties by picking the move
-            # that has the FEWEST open neighbors (Warnsdorff's heuristic) to force wall-hugging.
             def coiling_score(d):
                 coord = safer_moves[d]
                 adj = BotBrain._get_adjacent(coord, size)
                 free_neighbors = sum(1 for n in adj.values() if n not in obstacles and n not in danger_zones)
-                return (move_scores[d], -free_neighbors)
+                
+                # Tactical Shrinking: prioritize Bad Apples to free up tail space
+                bonus = 1000 if coord in bad_apples else 0
+                return (move_scores[d] + bonus, -free_neighbors)
                 
             best_dir = max(safer_moves.keys(), key=coiling_score)
             decision_log = (
@@ -112,8 +117,13 @@ class BotBrain:
 
         best_dir_to_apple = None
         if safe_apples:
-            # Find a path to a safe apple where the first step is a viable_move, and the destination is safe
-            best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, enemy_heads, obstacles, size, viable_moves, my_length)
+            # First attempt: path to safe apple AVOIDING Bad Apples
+            best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, enemy_heads, obstacles.union(set(bad_apples)), size, viable_moves, my_length)
+            
+            if not best_dir_to_apple:
+                # Second attempt: path to safe apple ALLOWING Bad Apples
+                best_dir_to_apple = BotBrain._bfs_shortest_path(head, safe_apples, enemy_heads, obstacles, size, viable_moves, my_length)
+                
             if best_dir_to_apple:
                 decision_log += f"Result: Safe apple found! Moving {best_dir_to_apple} towards it.\n\n"
                 print(f"Safe apple found! Moving {best_dir_to_apple} towards it.")
@@ -122,7 +132,13 @@ class BotBrain:
                 return best_dir_to_apple
 
         # 6. Fallback: No reachable apples, just pick the viable move that maximizes space
-        best_dir = max(viable_moves.keys(), key=lambda d: move_scores[d])
+        # Prefer viable moves that do NOT step on bad_apples!
+        def viable_score(d):
+            coord = viable_moves[d]
+            penalty = -1000 if coord in bad_apples else 0
+            return move_scores[d] + penalty
+            
+        best_dir = max(viable_moves.keys(), key=viable_score)
         decision_log += f"Result: No reachable apples. Moving {best_dir} into open space.\n\n"
         print(f"No reachable apples. Moving {best_dir} into open space.")
         with open('bot_decisions.log', 'a') as f:
