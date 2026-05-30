@@ -41,11 +41,12 @@ def fill_info_from_source(source) -> [SnakeInfo]:
 class Field:
     size: Tuple[int, int]
     snakes: Dict[TeamName, SnakeInfo]
+    items: list
 
     @staticmethod
     def from_dict(raw: dict) -> "Field":
         size = tuple(raw["size"])
-        snakes = ""
+        snakes = {}
         if "snake" in raw:
             source = raw["snake"]
             snakes = fill_info_from_source(source)
@@ -53,4 +54,6 @@ class Field:
             source = raw["snakes"]
             snakes = fill_info_from_source(source)
 
-        return Field(size=size, snakes=snakes)
+        items = raw.get("items", [])
+
+        return Field(size=size, snakes=snakes, items=items)
