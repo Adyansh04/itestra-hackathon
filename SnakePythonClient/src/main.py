@@ -23,17 +23,17 @@ if __name__ == "__main__":
     # team_name = "teamea"
     team_name = args.team_name
 
-    # base_url = "http://192.168.7.211:3030/"
-    # base_url = "http://192.168.3.13:3030/"
-    base_url = "http://localhost:3030/"
+    # base_url = "http://192.168.3.95:3030/"
+    base_url = "http://192.168.3.13:3030/"
+    # base_url = "http://localhost:3030/"
 
-    game_name = "Level5_Star"
-    # game_name = "FreeForAll"
+    game_name = "Final"
+    # game_name = "Final"
 
     # game_name = "Final"
 
-    # password = "handycomputeripad"
-    password = "test"
+    password = "handycomputeripad"
+    # password = "test"
 
     alive = True
 
@@ -43,17 +43,25 @@ if __name__ == "__main__":
     initial_direction = random.choice(get_directions_as_list())
     api.set_direction(initial_direction)
 
+    ROUND_2 = False
+
     while alive:
-        time.sleep(0.9)  # avoid rate limiting error
+        time.sleep(0.4)  # avoid rate limiting error
         try:
             field = api.get_field()
-            print(field)
+            # print(field)
             
             start_time = time.time()
-            currentDirection = BotBrain.get_next_move(field, team_name, 1.5, 1.0)
+            currentDirection, activate_item = BotBrain.get_next_move(field, team_name, ROUND_2)
             elapsed_ms = (time.time() - start_time) * 1000
             
             print(f"Tick completed in {elapsed_ms:.2f} ms. Moving {currentDirection}")
-            # api.set_direction(currentDirection)
+            if activate_item:
+                try:
+                    api.activate_item(activate_item)
+                    print(f"Activated {activate_item}!")
+                except Exception as e:
+                    print(f"Failed to activate {activate_item}: {e}")
+            api.set_direction(currentDirection)
         except Exception as e:
             print(f"Server connection error: {e}. Retrying next tick...")

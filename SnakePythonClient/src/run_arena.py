@@ -8,37 +8,49 @@ from data_structures import get_directions_as_list
 from bot import BotBrain
 
 def run_bot(team_name, p1_margin, p2_margin):
-    # Same configurations as main.py
-    base_url = "http://localhost:3030/"
-    game_name = "Level3_FreeForAll"
-    password = "test"
+    base_url = "http://192.168.3.95:3030/"
+    game_name = "Level8_1V1B"
+    
+    # Password mapping for each team/robot
+    passwords = {
+        "teamea": "handycomputeripad",
+        "test": "test"
+    }
+    password = passwords.get(team_name, "test")
     
     api = SnakeFieldAPI(base_url, team_name, game_name, password)
     
     # initial posting to register
     initial_direction = random.choice(get_directions_as_list())
+    print(f"[{team_name}] Registering with initial direction: {initial_direction}")
     try:
         api.set_direction(initial_direction)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[{team_name}] Registration failed: {e}", file=sys.stderr)
         
     alive = True
     while alive:
-        time.sleep(0.05)  # poll much faster than the 250ms tick rate!
+        time.sleep(0.2)  # avoid rate limiting error (poll slightly faster than 250ms tick rate)
         try:
             field = api.get_field()
-            currentDirection = BotBrain.get_next_move(field, team_name, p1_margin, p2_margin)
+            currentDirection, activate_item = BotBrain.get_next_move(field, team_name, False)
+            if activate_item:
+                try:
+                    api.activate_item(activate_item)
+                    print(f"[{team_name}] Activated {activate_item}!")
+                except Exception as e:
+                    print(f"[{team_name}] Failed to activate {activate_item}: {e}", file=sys.stderr)
             api.set_direction(currentDirection)
+            print(f"[{team_name}] Moved {currentDirection}")
         except Exception as e:
-            # If server connection fails or game ends, retry silently or loop
-            pass
+            print(f"[{team_name}] Loop exception: {e}", file=sys.stderr)
 
 if __name__ == "__main__":
     margins = [
         (2.0, 1.2),  # Bot 0: Main Coward-Scavenger
         (1.0, 1.0),  # Bot 1: Super Aggressive
-        (3.0, 2.0),  # Bot 2: Ultra Coward
-        (1.5, 1.0),  # Bot 3: Aggressive
+        # (3.0, 2.0),  # Bot 2: Ultra Coward
+        # (1.5, 1.0),  # Bot 3: Aggressive
         # (2.5, 1.5),  # Bot 4: Cowardly
         # (1.8, 1.1),  # Bot 5: Moderate
         # (1.2, 1.0),  # Bot 6: Aggressive
@@ -48,12 +60,12 @@ if __name__ == "__main__":
         # (1.4, 1.1)   # Bot 10: Slightly Aggressive
     ]
 
-    print("Launching 11 Bot Clones via Multiprocessing...")
+    print("Launching 2 Bot Clones via Multiprocessing...")
     
     processes = []
     
-    for i in range(11):
-        team_name = "teamea" if i == 0 else f"clone_{i}"
+    for i in range(2):
+        team_name = "teamea" if i == 0 else "test"
         p1, p2 = margins[i]
         
         print(f"Spawning {team_name} with margins (Phase 1: {p1}, Phase 2: {p2})")
@@ -63,7 +75,7 @@ if __name__ == "__main__":
         processes.append(p)
         time.sleep(0.1) # Stagger starts slightly
         
-    print("\nAll 11 bots launched! They are running entirely independently of main.py.")
+    print("\nAll 2 bots launched! They are running entirely independently of main.py.")
     print("Press Ctrl+C to terminate the simulation.")
     
     try:
