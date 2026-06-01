@@ -1,0 +1,222 @@
+Subscribe to DeepL Pro to translate larger documents.
+Visit www.DeepL.com/pro for more information.
+
+Hackathon:
+Bonding x itestra
+May 29–31, 2026
+
+What is it about?
+© itestra 2026
+
+Snake Reloaded!
+
+© itestra 2026
+
+How does it work?
+
+Bot Tournament
+▪ You program bots for the game Snake
+▪ Your bots compete against each other in tournaments
+▪ In addition to the classic Snake, there will be various items available later
+
+Test servers offer various games
+▪ We host various servers
+▪ You can connect to the IPs
+▪ The servers offer a UI where you can view the ongoing games and also reset them
+▪ You also have the option to host servers yourself
+
+© itestra 2026
+
+The Game
+
+Objective
+▪ Collect points in the tournaments
+▪ The team with the most points at the end wins
+
+Tournament
+▪ In each tournament, all teams compete in a match with 4 lines
+▪ The winning teams (longest line) play a match against each other
+
+© itestra 2026
+
+The Game
+End of the game:
+If one of the following scenarios occurs, the game ends immediately:
+▪ No snakes are left
+▪ Exactly one snake is still alive
+▪ If the game stalls (e.g., two snakes are running in circles, etc.)
+
+Scoring
+▪ The base points per round correspond to the length of your snake at the end of a game
+▪ The snake with the most points wins
+▪ The snake that survives the longest gets a bonus, but does not automatically win
+▪ Later games award extra points
+• Grand Finale (Sunday 10:00)
+© itestra 2026
+
+How do you play the game?
+Client
+
+Server
+▪ The game server ticks once per second* at fixed intervals
+▪ The game field is updated per tick
+▪ The current game field can be requested from the server
+
+Clients
+▪ You query the game board once per tick
+▪ You calculate your next move
+▪ You post the direction in which your snake should move in the next tick
+north, west, south, or east
+• North, West, South, East
+▪ Only the last post is considered for the next tick
+
+Server
+GET: Field
+
+Field
+
+Directions
+
+Directions
+
+GET: Field
+© itestra 2026
+
+1.00
+
+2.00
+
+Game Tick in Detail 1/2
+Reading the direction
+▪ For each snake, the most recently posted direction is evaluated
+
+Movement Phase
+▪ All snakes move one space simultaneously in the set direction
+▪ The snake can leave the playing field in any direction; it re-enters at the opposite edge
+
+Collisions
+▪ If a snake's head touches any object:
+• The snake dies
+▪ All collisions are handled simultaneously
+
+© itestra 2026
+
+Game Tick in Detail 2/2
+Collecting Items
+▪ Any item touched by a snake's head is collected
+▪ Apples cause the snake to grow one space immediately
+• The last tile of the snake is duplicated
+
+New items spawn
+▪ After all the snake's actions have been processed, new items spawn
+▪ Items spawn randomly, but not on already occupied spaces.
+
+© itestra 2026
+
+Implementation
+Provided clients
+▪ Minimal frameworks in Java and Python
+▪ You can find the clients in Nextcloud
+▪ Feel free to use any language you want!
+
+Debugging and Testing
+▪ Test your implementation against other teams on the test servers
+▪ Test against your local servers
+▪ You can create your own test scenarios
+
+Use of AI
+▪ Feel free to use any form of AI support available to you
+▪ Warning! Your code must be adaptable to changes in the game at all times!
+
+© itestra 2026
+
+Authentication
+Local test server
+▪ The password is always "test"
+
+Global Test Servers and Tournaments
+▪ You provide us with your team name
+▪ We will assign you a password
+▪ You can connect to the servers using your team name and password
+
+© itestra 2026
+
+Saturday Schedule
+Welcome and introduction
+
+9:00
+
+Tournament
+
+5:00 PM
+
+Tournament
+
+10:15
+
+Tournament
+
+7:00 PM
+
+11:00
+
+Group dinner
+
+7:15
+
+Tournament
+
+First two matches
+< 45 minutes!
+
+Longer
+
+Tournament
+
+1:00 PM
+
+Tournament
+
+Tournament
+
+3:00
+
+Tournament
+
+Break
+
+10:00
+PM
+12:00
+a.m.
+
+© itestra 2026
+
+Sunday Schedule
+Tournament
+
+2:00
+
+Tournament
+
+4:00
+
+Tournament
+
+6:00
+
+Tournament
+
+8:00
+
+Tournament
+
+10:00
+
+© itestra 2026
+
+Awards Ceremony
+
+12:00
+
+

@@ -28,7 +28,8 @@ if __name__ == "__main__":
     # base_url = "http://localhost:3030/"
 
     game_name = "Final"
-    # game_name = "Final"
+    # game_name = "Level11_Finale55"
+    # game_name = "Level11_Finale"
 
     # game_name = "Final"
 
@@ -46,10 +47,10 @@ if __name__ == "__main__":
     ROUND_2 = False
 
     while alive:
-        time.sleep(0.4)  # avoid rate limiting error
+        time.sleep(0.25)  # avoid rate limiting error
         try:
             field = api.get_field()
-            # print(field)
+            print(field)
             
             start_time = time.time()
             currentDirection, activate_item = BotBrain.get_next_move(field, team_name, ROUND_2)

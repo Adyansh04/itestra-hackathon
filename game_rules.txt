@@ -1,0 +1,219 @@
+Hackathon
+bonding x itestra
+29.05.-31.05.2026
+
+Worum geht es?
+
+© itestra 2026
+
+Snake Reloaded!
+
+© itestra 2026
+
+Wie funktioniert es?
+
+Turnier der Bots
+▪ Ihr programmiert Bots für das Spiel Snake
+▪ Eure Bots treten in Turnieren gegeneinander an
+▪ Zusätzlich zum klassischen Snake wird es später verschiedene Items geben
+
+Test Server bieten verschiedene Spiele an
+▪ Wir hosten verschiedene Server
+▪ Ihr könnt euch gegen die IPs verbinden
+▪ Die Server bieten eine UI an, auf der ihr die laufenden Spiele anschauen und auch zurücksetzen könnt
+▪ Ihr bekommt auch die Möglichkeit Server selbstständig zu hosten
+
+© itestra 2026
+
+Das Spiel
+
+Ziel
+▪ Sammelt Punkte in den Turnieren
+▪ Das Team am Ende mit den meisten Punkten gewinnt
+
+Turnier
+▪ Pro Turnier treten alle Teams in einem Match mit 4 Schlangen an
+▪ Die Siegerteams (längste Schlange) spielen ein Match gegeneinander
+
+© itestra 2026
+
+Das Spiel
+Spielende:
+Wenn eins der folgenden Szenarien eintritt, endet das Spiel sofort:
+▪ Keine Schlange lebt mehr
+▪ Genau eine Schlange lebt noch
+▪ Wenn das Spiel stagniert (z.B. zwei Schlangen laufen im Kreis, etc.)
+
+Punktesystem
+▪ Die Basis Punkte pro Runde entsprechen der Länge eurer Schlange am Ende eines Spieles
+▪ Es gewinnt die Schlange mit den meisten Punkten
+▪ Die Schlange die am längsten überlebt bekommt einen Bonus, hat aber nicht automatisch gewonnen
+▪ Die späteren Spiele geben extra Punkte
+• Grand Finale (Sonntag 10:00)
+© itestra 2026
+
+Wie spielt ihr das Spiel?
+Client
+
+Server
+▪ Der Spielserver tickt 1 Mal pro Sekunde* zu festen Intervallen
+▪ Pro Tick wird das Spielfeld aktualisiert
+▪ Das aktuelle Spielfeld kann am Server angefragt werden
+
+Clients
+▪ Ihr fragt einmal pro Tick das Spielfeld ab
+▪ Ihr berechnet euren nächsten Schritt
+▪ Ihr postet die Richtung, in der sich eure Schlange im nächsten Tick
+bewegen soll
+• Norden, Westen, Süden, Osten
+▪ Es wird nur der letzte Post für den nächsten Tick berücksichtigt
+
+Server
+GET: Field
+
+Field
+
+Directions
+
+Directions
+
+GET: Field
+
+© itestra 2026
+
+1.00
+
+2.00
+
+Game Tick im Detail 1/2
+Auslesen der Richtung
+▪ Für jede Schlange wird die zuletzt gepostete Richtung ausgewertet
+
+Movement Phase
+▪ Alle Schlangen bewegen sich gleichzeitig ein Feld in die gesetzte Richtung
+▪ Das Spielfeld kann in alle Richtungen verlassen werden, die Schlange betritt es erneut am gegenüberliegenden
+Rand
+
+Kollisionen
+▪ Berührt der Kopf einer Schlange einen beliebigen Körper:
+• Die Schlange stirbt
+▪ Alle Kollisionen werden gleichzeitig abgehandelt
+
+© itestra 2026
+
+Game Tick im Detail 2/2
+Items Aufsammeln
+▪ Jedes Item, was von einer Schlange mit dem Kopf berührt wird, wird aufgesammelt
+▪ Äpfel sorgen dafür, dass die Schlange direkt um ein Feld wächst
+• Das letzte Feld der Schlange wird dupliziert
+
+Neue Items spawnen
+▪ Nachdem alle Aktionen der Schlangen abgehandelt wurden spawnen neue Items
+▪ Items spawnen zufällig, aber nicht auf bereits besetzten Feldern.
+
+© itestra 2026
+
+Implementierung
+Bereitgestellte Clients
+▪ Minimale Gerüste in Java und Python
+▪ Ihr findet die Clients in Nextcloud
+▪ Benutzt gerne jede Sprache die ihr verwenden wollt!
+
+Debugging und Testing
+▪ Testet eure Implementierung gegen andere Teams auf den Testservern
+▪ Testet gegen eure lokalen Server
+▪ Ihr könnt eigene Testszenarien erstellen
+
+Verwendung von KI
+▪ Verwendet gerne jegliche Form von KI Unterstützung, die euch zur Verfügung steht
+▪ Vorsicht! Euer Code muss zu jedem Zeitpunkt an Änderungen des Spiels angepasst werden können!
+
+© itestra 2026
+
+Authentifizierung
+Testserver Lokal
+▪ Passwort ist immer „test“
+
+Globale Testserver und Turnier
+▪ Ihr nennt uns euren Teamnamen
+▪ Wir vergeben euch ein Passwort
+▪ Mit Teamnamen + Passwort könnt ihr euch gegen die Server verbinden
+
+© itestra 2026
+
+Agenda Samstag
+Begrüßung & Einführung
+
+9:00
+
+Turnier
+
+17:00
+
+Turnier
+
+10:15
+
+Turnier
+
+19:00
+
+11:00
+
+Gemeinsames Abendessen
+
+19:15
+
+Turnier
+
+Ersten beiden Spiele
+< 45 Minuten!
+
+Turnier
+
+13:00
+
+Turnier
+
+Turnier
+
+15:00
+
+Turnier
+
+© itestra 2026
+
+Längere
+Pause
+
+22:00
+0:00
+
+Agenda Sonntag
+Turnier
+
+2:00
+
+Turnier
+
+4:00
+
+Turnier
+
+6:00
+
+Turnier
+
+8:00
+
+Turnier
+
+10:00
+
+© itestra 2026
+
+Siegerehrung
+
+12:00
+
+
